@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Vendas — Vendedor & Administrativo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>🛒 Sistema de Vendas</h1>
+      <p>Painel Integrado de Gestão</p>
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="form-group">
+      <label>Usuário</label>
+      <input type="text" id="login-user" placeholder="admin" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Entrar no Sistema</button>
+    <p class="auth-hint">Use suas credenciais de acesso</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none;">
+  
+  <!-- SISTEMA DO VENDEDOR (ESQUERDA - AZUL) -->
+  <div class="panel panel-vendedor" id="panel-vendedor">
+    <div class="panel-header header-blue">
+      <button class="menu-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <h1>Painel do Vendedor</h1>
+      <div class="header-actions">
+        <div class="header-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <button class="header-logout-btn" onclick="doLogout()">Sair</button>
+      </div>
+    </div>
+
+    <div class="panel-content">
+      <!-- Botões de Ação -->
+      <div class="action-buttons">
+        <button class="btn btn-green" onclick="novaVenda()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Nova Venda
+        </button>
+        <button class="btn btn-blue" onclick="consultarProdutos()">Consultar Produtos</button>
+        <button class="btn btn-blue" onclick="meusPedidos()">Meus Pedidos</button>
+        <button class="btn btn-blue" onclick="historicoVendas()">Histórico de Vendas</button>
+        <button class="btn btn-blue" onclick="abrirOrdemServico()">Ordem de Serviço</button>
+      </div>
+
+      <!-- Itens do Pedido -->
+      <div class="card-white">
+        <h3>Itens do Pedido</h3>
+        <table class="table-vendedor">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Qtd.</th>
+              <th>Preço</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody id="itens-pedido"></tbody>
+        </table>
+        <div class="action-buttons-footer">
+          <button class="btn btn-blue-solid" onclick="finalizarVenda()">Finalizar Venda</button>
+          <button class="btn btn-outline-blue" onclick="gerarComprovante()">Gerar Comprovante</button>
+        </div>
+      </div>
+
+      <!-- Cards de Resumo e Últimos Pedidos -->
+      <div class="cards-grid">
+        <!-- Resumo da Venda -->
+        <div class="card-blue">
+          <h4>Resumo da Venda</h4>
+          <div class="card-value" id="resumo-venda-total">Total: R$ 0,00</div>
+          <div class="card-info" id="resumo-venda-pagamento">Forma de Pagamento: Nenhuma</div>
+        </div>
+
+        <!-- Vendas do Dia -->
+        <div class="card-blue">
+          <div class="card-header-flex">
+            <h4>Vendas do Dia</h4>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <div class="card-value-with-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+            <span id="vendas-dia-valor">R$ 0,00</span>
+          </div>
+          <button class="btn-card-arrow" onclick="historicoVendas()">›</button>
+        </div>
+
+        <!-- Últimos Pedidos -->
+        <div class="card-blue card-full-width">
+          <div class="card-header-flex">
+            <h4>Últimos Pedidos</h4>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+          </div>
+          <div class="pedidos-list" id="ultimos-pedidos"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÓDULO ADMINISTRATIVO (DIREITA - ESCURO) -->
+  <div class="panel panel-admin" id="panel-admin">
+    <div class="panel-header header-dark">
+      <button class="menu-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <h1 id="admin-panel-title">Painel Administrativo</h1>
+      <div class="header-actions">
+        <div class="header-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <button class="header-logout-btn" onclick="doLogout()">Sair</button>
+      </div>
+    </div>
+
+    <div class="panel-content" id="admin-panel-content">
+      <!-- Cards de Ícones -->
+      <div class="icon-cards">
+        <div class="icon-card" onclick="gerenciarProdutos()">
+          <div class="icon-card-icon icon-yellow">
+            📦
+          </div>
+          <span>Gerenciar Produtos</span>
+        </div>
+        <div class="icon-card" onclick="alterarPrecos()">
+          <div class="icon-card-icon icon-orange">
+            💰
+          </div>
+          <span>Alterar Preços</span>
+        </div>
+        <div class="icon-card" onclick="controleEstoque()">
+          <div class="icon-card-icon icon-red">
+            📊
+          </div>
+          <span>Controle de Estoque</span>
+        </div>
+        <div class="icon-card" onclick="relatoriosVendas()">
+          <div class="icon-card-icon icon-blue">
+            📈
+          </div>
+          <span>Relatórios de Vendas</span>
+        </div>
+                <div class="icon-card" onclick="abrirDespesas()">
+          <div class="icon-card-icon icon-red">
+            R$
+          </div>
+          <span>Despesas</span>
+        </div>
+        <div class="icon-card" onclick="abrirOrdemServico()">
+          <div class="icon-card-icon icon-yellow">
+            OS
+          </div>
+          <span>Ordem de Serviço</span>
+        </div>
+        <div class="icon-card" onclick="configSistema()">
+          <div class="icon-card-icon icon-gray">
+            ⚙️
+          </div>
+          <span>Configurações de Sistema</span>
+        </div>
+      </div>
+
+      <!-- Gestão de Produtos e Resumo Financeiro -->
+      <div class="admin-grid">
+        <!-- Gestão de Produtos -->
+        <div class="card-dark">
+          <h3>Gestão de Produtos</h3>
+          <table class="table-admin">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Estoque</th>
+                <th>Preço</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="produtos-admin"></tbody>
+          </table>
+        </div>
+
+        <!-- Resumo Financeiro -->
+        <div class="card-dark card-resumo">
+          <h3>Resumo Financeiro</h3>
+          <div class="resumo-item">
+            <span>Receitas:</span>
+            <span class="valor-green" id="resumo-receitas">R$ 0,00</span>
+          </div>
+          <div class="resumo-item">
+            <span>Despesas:</span>
+            <span class="valor-red" id="resumo-despesas">R$ 0,00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vendas Mensais e Relatório -->
+      <div class="admin-grid-charts">
+        <!-- Vendas Mensais -->
+        <div class="card-dark">
+          <h3>Vendas Mensais</h3>
+          <div class="chart-container">
+            <canvas id="chart-vendas-mensais"></canvas>
+          </div>
+        </div>
+
+        <!-- Relatório de Vendas -->
+        <div class="card-dark">
+          <h3>Relatório de Vendas</h3>
+          <div class="vendas-mes">
+            <span>Vendas do Mês:</span>
+            <span class="vendas-numero" id="vendas-mes-quantidade">0</span>
+          </div>
+          <div class="chart-container-small">
+            <canvas id="chart-relatorio-vendas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
