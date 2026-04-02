@@ -262,6 +262,111 @@ function buildServiceOrderPrintMarkup(data) {
   `;
 }
 
+function buildReceiptPrintMarkup(receipt) {
+  return `
+    <div class="print-header">
+      <h1>${COMPANY_NAME}</h1>
+      <h2>Comprovante de Venda</h2>
+      <p>Venda: #${escapeHtml(receipt.id)}</p>
+      <p>Data: ${formatDateTime(receipt.createdAt)}</p>
+      <p>Pagamento: ${escapeHtml(receipt.paymentMethod)}</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th>Qtd.</th>
+          <th>Unitário</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${receipt.items.map((item) => `
+          <tr>
+            <td>${escapeHtml(item.nome)}</td>
+            <td>${safeNumber(item.quantidade)}</td>
+            <td>${formatMoney(item.preco)}</td>
+            <td>${formatMoney(item.total)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div class="print-total">Total: ${formatMoney(receipt.total)}</div>
+  `;
+}
+
+function buildConsultarProdutosPrintMarkup() {
+  return `
+    <div class="print-header">
+      <h1>${COMPANY_NAME}</h1>
+      <h2>Consulta de Produtos</h2>
+      <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Produto</th>
+          <th>Estoque</th>
+          <th>Preço</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${state.produtos.length === 0
+          ? '<tr><td colspan="4">Nenhum produto cadastrado.</td></tr>'
+          : state.produtos.map((product) => `
+              <tr>
+                <td>${escapeHtml(product.codigo)}</td>
+                <td>${escapeHtml(product.nome)}</td>
+                <td>${safeNumber(product.estoque_atual)}</td>
+                <td>${formatMoney(product.preco_venda)}</td>
+              </tr>
+            `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function buildMeusPedidosPrintMarkup() {
+  const rows = state.receitas.slice(0, 10);
+
+  return `
+    <div class="print-header">
+      <h1>${COMPANY_NAME}</h1>
+      <h2>Meus Pedidos</h2>
+      <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Descrição</th>
+          <th>Data</th>
+          ${shouldShowSellerInfo() ? '<th>Vendedor</th>' : ''}
+          <th>Status</th>
+          <th>Valor</th>
+          <th>Registro</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.length === 0
+          ? `<tr><td colspan="${shouldShowSellerInfo() ? 7 : 6}">Nenhuma venda registrada.</td></tr>`
+          : rows.map((item) => `
+              <tr>
+                <td>#${item.id}</td>
+                <td>${escapeHtml(item.descricao)}</td>
+                <td>${formatDate(item.data)}</td>
+                ${shouldShowSellerInfo() ? `<td>${escapeHtml(sellerDisplayName(item))}</td>` : ''}
+                <td>${escapeHtml(item.status)}</td>
+                <td>${formatMoney(item.valor)}</td>
+                <td>${formatDateTime(item.criado_em || item.data)}</td>
+              </tr>
+            `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
 function findProductById(productId) {
   return state.produtos.find((product) => Number(product.id) === Number(productId));
 }
@@ -980,7 +1085,14 @@ function consultarProdutos() {
       <button class="modal-close" onclick="closeModal()">X</button>
     </div>
     ${rows}
+    <div class="modal-actions">
+      <button class="btn btn-blue" onclick="imprimirConsultarProdutos()">Imprimir</button>
+    </div>
   `);
+}
+
+function imprimirConsultarProdutos() {
+  openPrintWindow('Consulta de Produtos - JM MULT CELL', buildConsultarProdutosPrintMarkup());
 }
 
 function meusPedidos() {
@@ -1021,7 +1133,14 @@ function meusPedidos() {
         </tbody>
       </table>
     </div>
+    <div class="modal-actions">
+      <button class="btn btn-blue" onclick="imprimirMeusPedidos()">Imprimir</button>
+    </div>
   `);
+}
+
+function imprimirMeusPedidos() {
+  openPrintWindow('Meus Pedidos - JM MULT CELL', buildMeusPedidosPrintMarkup());
 }
 
 function historicoVendas() {
@@ -1132,7 +1251,27 @@ function gerarComprovante() {
       </div>
       <p class="receipt-total"><strong>Total:</strong> ${formatMoney(receipt.total)}</p>
     </div>
+    <div class="modal-actions">
+      <button class="btn btn-blue" onclick="imprimirComprovante()">Imprimir</button>
+    </div>
   `);
+}
+
+function imprimirComprovante() {
+  const receipt = state.lastReceipt || {
+    id: 'Prévia',
+    total: getSaleTotal(),
+    paymentMethod: state.currentSale.paymentMethod,
+    items: state.currentSale.items,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!receipt.items || receipt.items.length === 0) {
+    showToast('Não há comprovante para imprimir.', 'error');
+    return;
+  }
+
+  openPrintWindow('Comprovante de Venda - JM MULT CELL', buildReceiptPrintMarkup(receipt));
 }
 
 function gerenciarProdutos() {
