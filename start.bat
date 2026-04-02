@@ -36,6 +36,22 @@ if %errorlevel% neq 0 (
     echo.
 )
 
+pip show openpyxl >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  Instalando biblioteca de backup em Excel...
+    echo.
+    pip install openpyxl
+    if %errorlevel% neq 0 (
+        echo.
+        echo  [ERRO] Falha ao instalar openpyxl.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo  Biblioteca de backup instalada!
+    echo.
+)
+
 :: Libera porta 8080 se estiver ocupada
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8080 "') do (
     taskkill /PID %%a /F >nul 2>&1

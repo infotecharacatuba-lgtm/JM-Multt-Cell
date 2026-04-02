@@ -3,8 +3,12 @@ FinControl Pro - Backend FastAPI + SQLite multi-tenant.
 Cada empresa possui seu próprio banco.
 """
 
+import asyncio
+import io
 import os
+import tempfile
 import sqlite3
+import zipfile
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timedelta
 from typing import Optional
@@ -12,9 +16,11 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Form, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
+from openpyxl import Workbook
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
@@ -92,6 +98,11 @@ def init_master_db():
           slug       TEXT UNIQUE NOT NULL,
           ativo      INTEGER NOT NULL DEFAULT 1,
           criado_em  TEXT DEFAULT (datetime('now','localtime'))
+      );
+
+      CREATE TABLE IF NOT EXISTS sistema_controle (
+          chave TEXT PRIMARY KEY,
+          valor TEXT NOT NULL
       );
       """
     )
@@ -264,6 +275,119 @@ def audit(conn, user, acao, tabela=None, detalhe=None):
   )
 
 
+def get_master_setting(conn, chave: str):
+  row = conn.execute("SELECT valor FROM sistema_controle WHERE chave=?", (chave,)).fetchone()
+  return row["valor"] if row else None
+
+
+def set_master_setting(conn, chave: str, valor: str):
+  conn.execute(
+    """
+    INSERT INTO sistema_controle (chave, valor)
+    VALUES (?, ?)
+    ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor
+    """,
+    (chave, valor),
+  )
+
+
+def get_active_company_slugs():
+  with get_master_db() as conn:
+    return [row["slug"] for row in conn.execute("SELECT slug FROM empresas WHERE ativo=1").fetchall()]
+
+
+def clear_company_sales_and_purchases(slug: str):
+  if not os.path.exists(db_path_for(slug)):
+    return
+
+  with get_tenant_db(slug) as conn:
+    conn.execute("DELETE FROM movimentos_estoque")
+    conn.execute("DELETE FROM transacoes")
+    conn.execute("DELETE FROM audit_log")
+
+
+def run_year_end_cleanup_if_due():
+  now = datetime.now()
+  if now.month != 12 or now.day != 31:
+    return
+
+  cleanup_key = f"annual_cleanup_{now.year}"
+  with get_master_db() as conn:
+    if get_master_setting(conn, cleanup_key) == "done":
+      return
+
+  for slug in get_active_company_slugs():
+    clear_company_sales_and_purchases(slug)
+
+  with get_master_db() as conn:
+    set_master_setting(conn, cleanup_key, "done")
+
+
+async def annual_cleanup_scheduler():
+  while True:
+    run_year_end_cleanup_if_due()
+    await asyncio.sleep(3600)
+
+
+def append_table_to_sheet(conn, workbook, sheet_name: str, table_name: str):
+  sheet = workbook.create_sheet(title=sheet_name)
+  rows = conn.execute(f"SELECT * FROM {table_name}").fetchall()
+  columns = [info["name"] for info in conn.execute(f"PRAGMA table_info({table_name})").fetchall()]
+  sheet.append(columns)
+  for row in rows:
+    sheet.append([row[column] for column in columns])
+
+
+def build_company_backup_archive(slug: str):
+  db_path = db_path_for(slug)
+  if not os.path.exists(db_path):
+    raise HTTPException(status_code=404, detail="Banco de dados da empresa não encontrado")
+
+  workbook = Workbook()
+  workbook.remove(workbook.active)
+
+  with get_tenant_db(slug) as conn:
+    conn.execute("PRAGMA wal_checkpoint(FULL)")
+    for sheet_name, table_name in [
+      ("Usuarios", "usuarios"),
+      ("Categorias", "categorias_financeiro"),
+      ("Clientes", "clientes"),
+      ("Fornecedores", "fornecedores"),
+      ("Transacoes", "transacoes"),
+      ("Produtos", "produtos"),
+      ("Movimentos", "movimentos_estoque"),
+      ("Auditoria", "audit_log"),
+    ]:
+      append_table_to_sheet(conn, workbook, sheet_name, table_name)
+
+  xlsx_buffer = io.BytesIO()
+  workbook.save(xlsx_buffer)
+  xlsx_buffer.seek(0)
+
+  with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_db_file:
+    temp_db_path = temp_db_file.name
+
+  try:
+    source_conn = sqlite3.connect(db_path)
+    backup_conn = sqlite3.connect(temp_db_path)
+    try:
+      source_conn.backup(backup_conn)
+    finally:
+      backup_conn.close()
+      source_conn.close()
+
+    zip_buffer = io.BytesIO()
+    backup_date = datetime.now().strftime("%Y%m%d-%H%M%S")
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as backup_zip:
+      backup_zip.write(temp_db_path, arcname=f"{slug}-backup-{backup_date}.db")
+      backup_zip.writestr(f"{slug}-backup-{backup_date}.xlsx", xlsx_buffer.getvalue())
+    zip_buffer.seek(0)
+    return zip_buffer, backup_date
+  finally:
+    if os.path.exists(temp_db_path):
+      os.remove(temp_db_path)
+
+
 def get_default_despesa_categoria_id(conn):
   row = conn.execute(
     "SELECT id FROM categorias_financeiro WHERE tipo='despesa' ORDER BY id LIMIT 1"
@@ -390,6 +514,12 @@ class TenantUserPasswordIn(BaseModel):
   senha: str
 
 
+class AdminOwnPasswordIn(BaseModel):
+  senha_atual: str
+  nova_senha: str
+  confirmar_senha: str
+
+
 class ProdutoIn(BaseModel):
   codigo: str
   nome: str
@@ -429,7 +559,16 @@ class TransacaoStatusIn(BaseModel):
 async def lifespan(_: FastAPI):
   init_master_db()
   ensure_default_company()
-  yield
+  run_year_end_cleanup_if_due()
+  cleanup_task = asyncio.create_task(annual_cleanup_scheduler())
+  try:
+    yield
+  finally:
+    cleanup_task.cancel()
+    try:
+      await cleanup_task
+    except asyncio.CancelledError:
+      pass
 
 
 app = FastAPI(title="FinControl Pro API", lifespan=lifespan)
@@ -479,6 +618,21 @@ async def list_empresa_users(user=Depends(require_tenant_user)):
   return rows_to_list(rows)
 
 
+@app.get("/empresa/backup")
+async def download_empresa_backup(user=Depends(require_tenant_user)):
+  if user["role"] != "admin":
+    raise HTTPException(status_code=403, detail="Somente o admin da empresa pode gerar backup")
+
+  zip_buffer, backup_date = build_company_backup_archive(user["slug"])
+  return StreamingResponse(
+    zip_buffer,
+    media_type="application/zip",
+    headers={
+      "Content-Disposition": f'attachment; filename="{user["slug"]}-backup-{backup_date}.zip"'
+    },
+  )
+
+
 @app.post("/empresa/usuarios", status_code=201)
 async def create_empresa_user(payload: TenantUserIn, user=Depends(require_tenant_user)):
   if user["role"] != "admin":
@@ -526,6 +680,27 @@ async def update_empresa_user_password(uid: int, payload: TenantUserPasswordIn, 
       raise HTTPException(status_code=404, detail="Usuário não encontrado")
     conn.execute("UPDATE usuarios SET senha=? WHERE id=?", (pwd_ctx.hash(payload.senha), uid))
     audit(conn, user, "REDEFINIR_SENHA_USUARIO_EMPRESA", "usuarios", row["username"])
+  return {"ok": True}
+
+
+@app.put("/empresa/admin/minha-senha")
+async def update_admin_own_password(payload: AdminOwnPasswordIn, user=Depends(require_tenant_user)):
+  if user["role"] != "admin":
+    raise HTTPException(status_code=403, detail="Somente o admin da empresa pode alterar a própria senha")
+  if len(payload.nova_senha) < 4:
+    raise HTTPException(status_code=400, detail="A nova senha deve ter pelo menos 4 caracteres")
+  if payload.nova_senha != payload.confirmar_senha:
+    raise HTTPException(status_code=400, detail="A confirmação da nova senha não confere")
+
+  with get_tenant_db(user["slug"]) as conn:
+    row = conn.execute("SELECT id, username, senha FROM usuarios WHERE id=? AND role='admin'", (user["id"],)).fetchone()
+    if not row:
+      raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if not pwd_ctx.verify(payload.senha_atual, row["senha"]):
+      raise HTTPException(status_code=400, detail="Senha atual incorreta")
+
+    conn.execute("UPDATE usuarios SET senha=? WHERE id=?", (pwd_ctx.hash(payload.nova_senha), user["id"]))
+    audit(conn, user, "ALTERAR_SENHA_PROPRIA_ADMIN", "usuarios", row["username"])
   return {"ok": True}
 
 

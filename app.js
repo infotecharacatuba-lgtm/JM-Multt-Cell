@@ -90,6 +90,34 @@ async function apiForm(path, formData, extraHeaders = {}) {
   return res.json();
 }
 
+async function apiDownload(path, filename) {
+  const headers = {};
+
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
+  const res = await fetch(API + path, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
+    throw new Error(err.detail || 'Erro ao baixar arquivo');
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -359,6 +387,71 @@ function buildMeusPedidosPrintMarkup() {
                 ${shouldShowSellerInfo() ? `<td>${escapeHtml(sellerDisplayName(item))}</td>` : ''}
                 <td>${escapeHtml(item.status)}</td>
                 <td>${formatMoney(item.valor)}</td>
+                <td>${formatDateTime(item.criado_em || item.data)}</td>
+              </tr>
+            `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function buildRelatoriosVendasPrintMarkup() {
+  const dre = state.dre || {};
+  const recentSales = state.receitas.slice(0, 10);
+
+  return `
+    <div class="print-header">
+      <h1>${COMPANY_NAME}</h1>
+      <h2>Relatórios de Vendas</h2>
+      <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+    </div>
+    <div class="print-grid">
+      <div class="print-card">
+        <h3>DRE</h3>
+        <p><strong>Receita Bruta:</strong> ${formatMoney(dre.receita_bruta)}</p>
+        <p><strong>Despesas Totais:</strong> ${formatMoney(dre.despesas_totais)}</p>
+        <p><strong>Resultado:</strong> ${formatMoney(dre.resultado)}</p>
+        <p><strong>Margem:</strong> ${safeNumber(dre.margem)}%</p>
+      </div>
+      <div class="print-card">
+        <h3>Top Produtos</h3>
+        ${state.topProdutos.length === 0
+          ? '<p>Nenhum dado disponível.</p>'
+          : `<table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Saídas</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${state.topProdutos.map((item) => `
+                  <tr>
+                    <td>${escapeHtml(item.nome)}</td>
+                    <td>${safeNumber(item.saidas)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`}
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Valor</th>
+          <th>Vendedor</th>
+          <th>Data</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${recentSales.length === 0
+          ? '<tr><td colspan="4">Nenhuma venda registrada.</td></tr>'
+          : recentSales.map((item) => `
+              <tr>
+                <td>#${item.id}</td>
+                <td>${formatMoney(item.valor)}</td>
+                <td>${escapeHtml(sellerDisplayName(item))}</td>
                 <td>${formatDateTime(item.criado_em || item.data)}</td>
               </tr>
             `).join('')}
@@ -751,6 +844,37 @@ function renderTenantUsersSection() {
   `;
 }
 
+function renderAdminPasswordSection() {
+  if (!hasAdminDashboard()) {
+    return '';
+  }
+
+  return `
+    <div class="report-card">
+      <h3>Alterar Minha Senha</h3>
+      <form id="admin-password-form" class="modal-form">
+        <div class="form-group">
+          <label for="admin-current-password">Senha Atual</label>
+          <input id="admin-current-password" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="modal-grid">
+          <div class="form-group">
+            <label for="admin-new-password">Nova Senha</label>
+            <input id="admin-new-password" type="password" autocomplete="new-password" required>
+          </div>
+          <div class="form-group">
+            <label for="admin-confirm-password">Confirmar Nova Senha</label>
+            <input id="admin-confirm-password" type="password" autocomplete="new-password" required>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-green">Alterar Minha Senha</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
 function attachTenantUserForm() {
   const form = document.getElementById('tenant-user-form');
   if (!form) return;
@@ -1091,6 +1215,40 @@ function consultarProdutos() {
   `);
 }
 
+function attachAdminPasswordForm() {
+  const form = document.getElementById('admin-password-form');
+  if (!form) return;
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const payload = {
+      senha_atual: document.getElementById('admin-current-password').value,
+      nova_senha: document.getElementById('admin-new-password').value,
+      confirmar_senha: document.getElementById('admin-confirm-password').value,
+    };
+
+    if (!payload.senha_atual || !payload.nova_senha || !payload.confirmar_senha) {
+      showToast('Preencha todos os campos para alterar sua senha.', 'error');
+      return;
+    }
+
+    if (payload.nova_senha !== payload.confirmar_senha) {
+      showToast('A confirmação da nova senha não confere.', 'error');
+      return;
+    }
+
+    try {
+      await api('PUT', '/empresa/admin/minha-senha', payload);
+      form.reset();
+      showToast('Senha alterada com sucesso.', 'success');
+    } catch (error) {
+      console.error('Erro ao alterar a própria senha:', error);
+      showToast(error.message || 'Erro ao alterar a própria senha.', 'error');
+    }
+  });
+}
+
 function imprimirConsultarProdutos() {
   openPrintWindow('Consulta de Produtos - JM MULT CELL', buildConsultarProdutosPrintMarkup());
 }
@@ -1283,6 +1441,7 @@ function gerenciarProdutos() {
     <div class="modal-actions">
       <button class="btn btn-green" onclick="abrirFormularioProduto()">Novo Produto</button>
       <button class="btn btn-blue" onclick="refreshDashboard(true)">Atualizar Lista</button>
+      <button class="btn btn-blue" onclick="imprimirConsultarProdutos()">Imprimir</button>
     </div>
     <div class="table-wrapper">
       <table class="modal-table">
@@ -1795,7 +1954,14 @@ function relatoriosVendas() {
             `).join(''))}
       </ul>
     </div>
+    <div class="modal-actions">
+      <button class="btn btn-blue" onclick="imprimirRelatoriosVendas()">Imprimir</button>
+    </div>
   `);
+}
+
+function imprimirRelatoriosVendas() {
+  openPrintWindow('Relatórios de Vendas - JM MULT CELL', buildRelatoriosVendasPrintMarkup());
 }
 
 async function configSistema() {
@@ -1819,14 +1985,33 @@ async function configSistema() {
       <p><strong>Perfil:</strong> ${escapeHtml(currentUser?.role || '-')}</p>
       <p><strong>Empresa:</strong> ${escapeHtml(currentUser?.slug || COMPANY_NAME)}</p>
     </div>
+    ${renderAdminPasswordSection()}
     ${renderTenantUsersSection()}
     <div class="modal-actions">
+      ${hasAdminDashboard() ? '<button class="btn btn-green" onclick="gerarBackupEmpresa()">Backup .db + .xlsx</button>' : ''}
       <button class="btn btn-blue" onclick="refreshDashboard(true)">Sincronizar Dados</button>
       <button class="btn btn-outline-blue" onclick="doLogout(); closeModal();">Sair do Sistema</button>
     </div>
   `);
 
   attachTenantUserForm();
+  attachAdminPasswordForm();
+}
+
+async function gerarBackupEmpresa() {
+  if (!hasAdminDashboard()) {
+    showToast('Somente o admin da empresa pode gerar backup.', 'error');
+    return;
+  }
+
+  try {
+    const filename = `${currentUser?.slug || 'empresa'}-backup.zip`;
+    await apiDownload('/empresa/backup', filename);
+    showToast('Backup gerado com sucesso.', 'success');
+  } catch (error) {
+    console.error('Erro ao gerar backup:', error);
+    showToast(error.message || 'Erro ao gerar backup.', 'error');
+  }
 }
 
 function openModal(content) {

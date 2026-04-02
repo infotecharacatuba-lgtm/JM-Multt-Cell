@@ -54,7 +54,9 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+ background: linear-gradient(135deg, #2196F3 0%, #acc8f3 80%, #FFD700 95%);
+
+
 }
 
 .auth-card {
@@ -1053,4 +1055,15 @@ body {
   .auth-card {
     padding: 32px 24px;
   }
+}
+
+
+/* Direitos Autorais dentro da caixa de login */
+.login-box .copyright {
+  font-size: clamp(10px, 1.2vw, 14px); /* ajusta dinamicamente */
+  text-align: center;
+  color: var(--text-gray);
+  margin-top: 20px;
+  overflow-wrap: break-word; /* quebra se ultrapassar */
+  word-break: break-word;    /* garante compatibilidade */
 }
