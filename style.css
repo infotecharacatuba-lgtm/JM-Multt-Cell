@@ -1022,6 +1022,20 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .modal {
+    width: calc(100% - 24px);
+    max-height: calc(100vh - 24px);
+    padding: 20px 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+  }
+
   .panel-header h1 {
     font-size: 16px;
   }
