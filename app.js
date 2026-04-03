@@ -205,6 +205,9 @@ function openPrintWindow(title, content) {
           th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
           th { background: #f3f4f6; }
           .print-header { margin-bottom: 20px; }
+          .print-header-with-logo { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 20px; }
+          .print-logo { width: 80px; height: 80px; object-fit: contain; flex-shrink: 0; }
+          .print-header-content { flex: 1; }
           .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
           .print-card { border: 1px solid #d1d5db; padding: 14px; border-radius: 8px; }
           .print-total { margin-top: 18px; font-size: 18px; font-weight: bold; }
@@ -225,11 +228,14 @@ function buildExpensePrintMarkup() {
   const monthLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
   return `
-    <div class="print-header">
-      <h1>${COMPANY_NAME}</h1>
-      <h2>Relatório de Despesas</h2>
-      <p>Período: ${escapeHtml(monthLabel)}</p>
-      <p>Impresso em: ${formatDateTime(new Date().toISOString())}</p>
+    <div class="print-header-with-logo">
+      <img src="img/logo.png" class="print-logo" alt="Logo JM MULT CELL">
+      <div class="print-header-content">
+        <h1>${COMPANY_NAME}</h1>
+        <h2>Relatório de Despesas</h2>
+        <p>Período: ${escapeHtml(monthLabel)}</p>
+        <p>Impresso em: ${formatDateTime(new Date().toISOString())}</p>
+      </div>
     </div>
     <table>
       <thead>
@@ -259,11 +265,14 @@ function buildExpensePrintMarkup() {
 
 function buildServiceOrderPrintMarkup(data) {
   return `
-    <div class="print-header">
-      <h1>${COMPANY_NAME}</h1>
-      <h2>Ordem de Serviço</h2>
-      <p>Ramo: manutenção de celulares e acessórios em geral</p>
-      <p>Data de emissão: ${formatDateTime(new Date().toISOString())}</p>
+    <div class="print-header-with-logo">
+      <img src="img/logo.png" class="print-logo" alt="Logo JM MULT CELL">
+      <div class="print-header-content">
+        <h1>${COMPANY_NAME}</h1>
+        <h2>Ordem de Serviço</h2>
+        <p>Ramo: manutenção de celulares e acessórios em geral</p>
+        <p>Data de emissão: ${formatDateTime(new Date().toISOString())}</p>
+      </div>
     </div>
     <div class="print-grid">
       <div class="print-card">
@@ -292,12 +301,15 @@ function buildServiceOrderPrintMarkup(data) {
 
 function buildReceiptPrintMarkup(receipt) {
   return `
-    <div class="print-header">
-      <h1>${COMPANY_NAME}</h1>
-      <h2>Comprovante de Venda</h2>
-      <p>Venda: #${escapeHtml(receipt.id)}</p>
-      <p>Data: ${formatDateTime(receipt.createdAt)}</p>
-      <p>Pagamento: ${escapeHtml(receipt.paymentMethod)}</p>
+    <div class="print-header-with-logo">
+      <img src="img/logo.png" class="print-logo" alt="Logo JM MULT CELL">
+      <div class="print-header-content">
+        <h1>${COMPANY_NAME}</h1>
+        <h2>Comprovante de Venda</h2>
+        <p>Venda: #${escapeHtml(receipt.id)}</p>
+        <p>Data: ${formatDateTime(receipt.createdAt)}</p>
+        <p>Pagamento: ${escapeHtml(receipt.paymentMethod)}</p>
+      </div>
     </div>
     <table>
       <thead>
@@ -325,10 +337,13 @@ function buildReceiptPrintMarkup(receipt) {
 
 function buildConsultarProdutosPrintMarkup() {
   return `
-    <div class="print-header">
-      <h1>${COMPANY_NAME}</h1>
-      <h2>Consulta de Produtos</h2>
-      <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+    <div class="print-header-with-logo">
+      <img src="img/logo.png" class="print-logo" alt="Logo JM MULT CELL">
+      <div class="print-header-content">
+        <h1>${COMPANY_NAME}</h1>
+        <h2>Consulta de Produtos</h2>
+        <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+      </div>
     </div>
     <table>
       <thead>
@@ -359,10 +374,13 @@ function buildMeusPedidosPrintMarkup() {
   const rows = state.receitas.slice(0, 10);
 
   return `
-    <div class="print-header">
-      <h1>${COMPANY_NAME}</h1>
-      <h2>Meus Pedidos</h2>
-      <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+    <div class="print-header-with-logo">
+      <img src="img/logo.png" class="print-logo" alt="Logo JM MULT CELL">
+      <div class="print-header-content">
+        <h1>${COMPANY_NAME}</h1>
+        <h2>Meus Pedidos</h2>
+        <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+      </div>
     </div>
     <table>
       <thead>
@@ -400,10 +418,13 @@ function buildRelatoriosVendasPrintMarkup() {
   const recentSales = state.receitas.slice(0, 10);
 
   return `
-    <div class="print-header">
-      <h1>${COMPANY_NAME}</h1>
-      <h2>Relatórios de Vendas</h2>
-      <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+    <div class="print-header-with-logo">
+      <img src="img/logo.png" class="print-logo" alt="Logo JM MULT CELL">
+      <div class="print-header-content">
+        <h1>${COMPANY_NAME}</h1>
+        <h2>Relatórios de Vendas</h2>
+        <p>Data: ${formatDateTime(new Date().toISOString())}</p>
+      </div>
     </div>
     <div class="print-grid">
       <div class="print-card">
@@ -1494,7 +1515,7 @@ function buildProdutoForm(product = null) {
         </div>
       </div>
       <div class="form-group">
-        <label for="produto-descricao">DescriÃ§Ã£o</label>
+        <label for="produto-descricao">Descrição</label>
         <textarea id="produto-descricao" rows="3">${escapeHtml(product?.descricao || '')}</textarea>
       </div>
       <div class="modal-grid">
@@ -1503,7 +1524,7 @@ function buildProdutoForm(product = null) {
           <input id="produto-estoque" type="number" step="0.01" value="${safeNumber(product?.estoque_atual)}" required>
         </div>
         <div class="form-group">
-          <label for="produto-estoque-minimo">Estoque MÃ­nimo</label>
+          <label for="produto-estoque-minimo">Estoque Mínimo</label>
           <input id="produto-estoque-minimo" type="number" step="0.01" value="${safeNumber(product?.estoque_minimo)}" required>
         </div>
       </div>

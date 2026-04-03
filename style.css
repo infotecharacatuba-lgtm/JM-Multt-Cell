@@ -85,6 +85,16 @@ body {
   color: var(--text-gray);
 }
 
+h1 .icon {
+  width: 110px;
+  height: auto;
+  vertical-align: middle;
+  margin-right: 8px;
+  margin-left: -45px; /* empurra a imagem para mais perto da borda esquerda */
+}
+
+
+
 .auth-error {
   background: #FEE;
   border: 1px solid #FCC;
@@ -706,6 +716,26 @@ body {
   font-size: 15px;
 }
 
+
+.header {
+  display: flex;
+  align-items: center;      /* alinha verticalmente */
+  justify-content: space-between; /* separa h1 à esquerda e logo à direita */
+}
+
+.header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.header .logo {
+  width: 120px;   /* largura maior */
+  height: 120px;   /* mantém proporção */
+}
+
+
+
 /* Charts Grid */
 .admin-grid-charts {
   display: grid;
@@ -1056,6 +1086,7 @@ body {
     padding: 32px 24px;
   }
 }
+
 
 
 /* Direitos Autorais dentro da caixa de login */
