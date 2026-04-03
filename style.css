@@ -54,7 +54,7 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
- background: linear-gradient(135deg, #2196F3 0%, #acc8f3 80%, #FFD700 95%);
+ background: linear-gradient(185deg, #e0ce64 0%, #3ba1f5 20%, #033f99 30%, #acc8f3 80%, #e0ce64, #acc8f3 100%);
 
 
 }
@@ -67,6 +67,35 @@ body {
   max-width: 420px;
   box-shadow: var(--shadow-lg);
 }
+
+.logo-bloco {
+  display: flex;
+  flex-direction: column;   /* imagem em cima, textos abaixo */
+  align-items: center;      /* centraliza ao meio */
+  text-align: center;       /* centraliza textos */
+  margin-bottom: 32px;
+}
+
+.logo-bloco .logo-3d {
+  width: 110px;
+  height: auto;
+  margin-bottom: 12px;
+}
+
+.logo-bloco h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-dark); /* mantém a paleta */
+  margin-bottom: 8px;
+}
+
+.logo-bloco .logo-paragrafo {
+  font-size: 20px;          /* aumenta o tamanho da letra */
+  font-weight: 600;         /* deixa mais destacado */
+  color: #FFFFFF;           /* cor branca */
+}
+
+
 
 .auth-logo {
   text-align: center;
@@ -90,7 +119,7 @@ h1 .icon {
   height: auto;
   vertical-align: middle;
   margin-right: 8px;
-  margin-left: -45px; /* empurra a imagem para mais perto da borda esquerda */
+  margin-left: -45px; 
 }
 
 
@@ -174,6 +203,7 @@ h1 .icon {
   color: var(--text-gray);
   margin-top: 16px;
 }
+
 
 /* ═══════════════════════════════════════════════════════════
    LAYOUT PRINCIPAL
@@ -736,6 +766,8 @@ h1 .icon {
 
 
 
+
+
 /* Charts Grid */
 .admin-grid-charts {
   display: grid;
@@ -1086,6 +1118,39 @@ h1 .icon {
     padding: 32px 24px;
   }
 }
+
+.logo-bloco {
+  display: flex;
+  flex-direction: column;   /* coloca imagem em cima e textos abaixo */
+  align-items: center;      /* centraliza ao meio */
+  text-align: center;       /* centraliza textos */
+  margin-bottom: 32px;      /* espaço abaixo do bloco */
+}
+
+.logo-bloco .icon {
+  width: 110px;             /* ajuste conforme necessário */
+  height: auto;
+  margin-bottom: 12px;      /* espaço entre imagem e título */
+}
+
+
+.logo-3d {
+  width: 80px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+
+  /* Efeito 3D */
+  transform: perspective(600px) rotateY(15deg) rotateX(10deg);
+  filter: drop-shadow(6px 6px 8px rgba(0,0,0,0.4)); /* sombra só no logo */
+  transition: transform 0.6s ease, filter 0.6s ease;
+}
+
+.logo-3d:hover {
+  transform: perspective(600px) rotateY(0deg) rotateX(0deg) scale(1.05);
+  filter: drop-shadow(10px 10px 12px rgba(0,0,0,0.5));
+}
+
 
 
 

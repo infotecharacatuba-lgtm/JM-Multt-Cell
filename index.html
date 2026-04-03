@@ -11,13 +11,14 @@
 </head>
 <body>
 
-<!-- AUTH SCREEN -->
 <div id="auth-screen">
   <div class="auth-card">
-    <div class="auth-logo">
-      <h1><img src="img/logo.png" alt="Globo" class="icon"> Sistema de Gestão</h1>
+    <div class="logo-bloco">
+      <img src="img/logo.png" alt="Globo" class="icon">
+      <h1>Sistema de Gestão</h1>
       <p>Painel Integrado a JM Mult Cell</p>
     </div>
+
     <div class="auth-error" id="auth-error"></div>
     <div class="form-group">
       <label>Usuário</label>
@@ -28,15 +29,16 @@
       <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/>
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar no Sistema</button>
-    <p class="auth-hint">Use suas credenciais de acesso</p> <p style="text-align:center; font-size:14px; color:#555; margin-top:20px;">
-  © 2026 Info Tech Araçatuba - Todos os direitos reservados.</p> <p style="text-align:center; font-size:16px; color:#000; margin-top:20px;">
-  Contato: 18-996622714
-</p>
-
-
-
+    <p class="auth-hint">Use suas credenciais de acesso</p>
+    <p style="text-align:center; font-size:14px; color:#555; margin-top:20px;">
+      © 2026 Info Tech Araçatuba - Todos os direitos reservados.
+    </p>
+    <p style="text-align:center; font-size:16px; color:#000; margin-top:20px;">
+      Contato: 18-996622714
+    </p>
   </div>
 </div>
+
 
 <!-- MAIN APP -->
 <div id="app" style="display:none;">
@@ -49,7 +51,15 @@
           <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
       </button>
-      <h1>Painel do Vendedor</h1>
+     <div class="logo-bloco">
+  <img src="img/logo-painel.png" alt="Logo" class="logo-3d">
+  <h1>Sistema de Gestão</h1>
+  <p class="logo-paragrafo">Painel Integrado a JM Mult Cell</p>
+</div>
+
+
+
+
       <div class="header-actions">
         <div class="header-dots">
           <span></span><span></span><span></span>
