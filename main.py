@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 
-from fastapi import Depends, FastAPI, Form, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Form, Header, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.responses import StreamingResponse
@@ -632,6 +632,88 @@ async def download_empresa_backup(user=Depends(require_tenant_user)):
       "Content-Disposition": f'attachment; filename="{user["slug"]}-backup-{backup_date}.zip"'
     },
   )
+
+
+@app.post("/empresa/restore")
+async def restore_empresa_backup(
+  file: UploadFile = File(...),
+  user=Depends(require_tenant_user)
+):
+  if user["role"] != "admin":
+    raise HTTPException(status_code=403, detail="Somente o admin da empresa pode restaurar backup")
+
+  if not file.filename.endswith('.db'):
+    raise HTTPException(status_code=400, detail="O arquivo deve ter extensão .db")
+
+  slug = user["slug"]
+  current_db_path = db_path_for(slug)
+
+  # Cria backup de segurança do banco atual
+  backup_safety_path = f"{current_db_path}.backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+  try:
+    if os.path.exists(current_db_path):
+      import shutil
+      shutil.copy2(current_db_path, backup_safety_path)
+  except Exception as e:
+    raise HTTPException(
+      status_code=500,
+      detail=f"Erro ao criar backup de segurança: {str(e)}"
+    )
+
+  # Salva o arquivo enviado temporariamente
+  with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+    temp_db_path = temp_file.name
+    content = await file.read()
+    temp_file.write(content)
+
+  try:
+    # Valida se é um banco SQLite válido
+    test_conn = sqlite3.connect(temp_db_path)
+    try:
+      test_conn.execute("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1").fetchone()
+      test_conn.close()
+    except sqlite3.DatabaseError:
+      os.remove(temp_db_path)
+      raise HTTPException(status_code=400, detail="Arquivo .db inválido ou corrompido")
+
+    # Remove arquivos WAL e SHM do banco atual se existirem
+    for ext in ["-wal", "-shm"]:
+      wal_file = f"{current_db_path}{ext}"
+      if os.path.exists(wal_file):
+        try:
+          os.remove(wal_file)
+        except:
+          pass
+
+    # Substitui o banco atual pelo banco do backup
+    import shutil
+    shutil.move(temp_db_path, current_db_path)
+
+    # Registra a restauração no log de auditoria
+    with get_tenant_db(slug) as conn:
+      audit(conn, user, "RESTAURAR_BACKUP", "sistema", f"Backup restaurado do arquivo {file.filename}")
+
+    return {
+      "ok": True,
+      "message": "Backup restaurado com sucesso",
+      "backup_safety": backup_safety_path
+    }
+
+  except HTTPException:
+    raise
+  except Exception as e:
+    # Em caso de erro, restaura o backup de segurança
+    if os.path.exists(backup_safety_path):
+      import shutil
+      shutil.copy2(backup_safety_path, current_db_path)
+    
+    if os.path.exists(temp_db_path):
+      os.remove(temp_db_path)
+    
+    raise HTTPException(
+      status_code=500,
+      detail=f"Erro ao restaurar backup: {str(e)}"
+    )
 
 
 @app.post("/empresa/usuarios", status_code=201)

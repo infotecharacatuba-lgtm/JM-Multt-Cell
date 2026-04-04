@@ -2010,6 +2010,7 @@ async function configSistema() {
     ${renderTenantUsersSection()}
     <div class="modal-actions">
       ${hasAdminDashboard() ? '<button class="btn btn-green" onclick="gerarBackupEmpresa()">Backup .db + .xlsx</button>' : ''}
+      ${hasAdminDashboard() ? '<button class="btn btn-orange" onclick="restaurarBackup()">Restaurar Backup</button>' : ''}
       <button class="btn btn-blue" onclick="refreshDashboard(true)">Sincronizar Dados</button>
       <button class="btn btn-outline-blue" onclick="doLogout(); closeModal();">Sair do Sistema</button>
     </div>
@@ -2033,6 +2034,70 @@ async function gerarBackupEmpresa() {
     console.error('Erro ao gerar backup:', error);
     showToast(error.message || 'Erro ao gerar backup.', 'error');
   }
+}
+
+async function restaurarBackup() {
+  if (!hasAdminDashboard()) {
+    showToast('Somente o admin da empresa pode restaurar backup.', 'error');
+    return;
+  }
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.db';
+  
+  input.onchange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.db')) {
+      showToast('Por favor, selecione um arquivo .db válido.', 'error');
+      return;
+    }
+
+    const confirmacao = confirm(
+      'ATENÇÃO: Esta ação irá substituir TODOS os dados atuais do sistema pelos dados do backup.\n\n' +
+      'Um backup automático dos dados atuais será criado antes da restauração.\n\n' +
+      'Deseja continuar?'
+    );
+
+    if (!confirmacao) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const headers = {};
+      if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+
+      showToast('Iniciando restauração do backup...', 'info');
+
+      const res = await fetch(API + '/empresa/restore', {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
+        throw new Error(err.detail || 'Erro ao restaurar backup');
+      }
+
+      const result = await res.json();
+      showToast('Backup restaurado com sucesso! Recarregando sistema...', 'success');
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      console.error('Erro ao restaurar backup:', error);
+      showToast(error.message || 'Erro ao restaurar backup.', 'error');
+    }
+  };
+
+  input.click();
 }
 
 function openModal(content) {
